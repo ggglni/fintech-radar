@@ -55,7 +55,7 @@ async function extractSignals(emailBody, subject, existingData) {
 
   const response = await anthropic.messages.create({
 model: "claude-sonnet-4-20250514",
-max_tokens: 1500,
+max_tokens: 5500,
     messages: [{
       role: "user",
       content: `You are a fintech venture analyst. Extract structured signals from this newsletter email.
@@ -122,7 +122,7 @@ Rules:
       return JSON.parse(raw.slice(start, i + 1));
     }}
   }
-  console.error("RAW CLAUDE RESPONSE:", raw.slice(0, 500));
+  console.error("RAW CLAUDE RESPONSE:", raw.slice(0, 5000));
 throw new Error("No valid JSON in Claude response");
 }
 
