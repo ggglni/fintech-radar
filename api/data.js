@@ -9,9 +9,10 @@ export default async function handler(req, res) {
       headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` },
     });
     const json = await response.json();
-    const data = json.result ? JSON.parse(json.result) : {
-      companies: [], themes: {}, issues: [], lastUpdated: null
-    };
+    let parsed = json.result;
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    const data = parsed || { companies: [], themes: {}, issues: [], lastUpdated: null };
     return res.status(200).json(data);
   } catch (err) {
     return res.status(500).json({ error: err.message });
