@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "anthropic": "^0.30.0"
+    "@anthropic-ai/sdk": "^0.20.0"
   }
 }
