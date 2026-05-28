@@ -54,8 +54,8 @@ async function extractSignals(emailBody, subject, existingData) {
   const existingThemes = Object.keys(existingData.themes || {}).join(", ") || "none yet";
 
   const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 2000,
+model: "claude-sonnet-4-20250514",
+max_tokens: 1500,
     messages: [{
       role: "user",
       content: `You are a fintech venture analyst. Extract structured signals from this newsletter email.
@@ -203,9 +203,9 @@ if (!body || body.length < 100) {
         existing = mergeData(existing, parsed, details.subject || "This Week in Fintech");
         newProcessedIds.push(email.id);
         processed++;
-      } catch (e) {
-        console.error(`Failed to process email ${email.id}:`, e.message);
-      }
+} catch (e) {
+  console.error(`Failed to process email ${email.id}:`, e.message, e.stack?.slice(0, 200));
+}
     }
 
     await kvSet("radar_data", existing);
