@@ -28,7 +28,7 @@ async function kvSet(key, value) {
 
 // Fetch received emails from Resend API
 async function fetchResendEmails() {
-  const res = await fetch("https://api.resend.com/emails?limit=20", {
+  const res = await fetch("https://api.resend.com/emails/receiving?limit=20", {
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
     },
