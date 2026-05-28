@@ -6,10 +6,8 @@
       "schedule": "0 9 * * *"
     }
   ],
-  "routes": [
-    { "src": "/api/poll", "dest": "/api/poll.js" },
-    { "src": "/api/data", "dest": "/api/data.js" },
-    { "src": "/api/inbound", "dest": "/api/inbound.js" },
-    { "src": "/(.*)", "dest": "/public/index.html" }
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/:path*", "destination": "/public/index.html" }
   ]
 }
