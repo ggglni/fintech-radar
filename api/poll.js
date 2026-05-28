@@ -190,8 +190,12 @@ export default async function handler(req, res) {
     for (const email of newEmails) {
       try {
         const details = await fetchEmailDetails(email.id);
-        const body = details.text || (details.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        if (!body || body.length < 100) continue;
+console.log("EMAIL DETAILS:", JSON.stringify(details).slice(0, 500));
+const body = details.text || (details.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+if (!body || body.length < 100) {
+  console.log("BODY TOO SHORT:", body?.length, body?.slice(0, 100));
+  continue;
+}
 
         const parsed = await extractSignals(body, details.subject || "This Week in Fintech", existing);
         existing = mergeData(existing, parsed, details.subject || "This Week in Fintech");
