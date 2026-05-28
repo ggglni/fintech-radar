@@ -39,12 +39,14 @@ async function fetchResendEmails() {
 
 // Fetch full email details including body
 async function fetchEmailDetails(emailId) {
-  const res = await fetch(`https://api.resend.com/emails/${emailId}`, {
+  const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
     },
   });
-  return res.json();
+  const data = await res.json();
+  console.log("DETAIL RESPONSE:", JSON.stringify(data).slice(0, 300));
+  return data;
 }
 
 async function extractSignals(emailBody, subject, existingData) {
