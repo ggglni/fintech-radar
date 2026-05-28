@@ -122,7 +122,8 @@ Rules:
       return JSON.parse(raw.slice(start, i + 1));
     }}
   }
-  throw new Error("No valid JSON in Claude response");
+  console.error("RAW CLAUDE RESPONSE:", raw.slice(0, 500));
+throw new Error("No valid JSON in Claude response");
 }
 
 function mergeData(existing, parsed, subject) {
