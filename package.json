@@ -1,0 +1,8 @@
+{
+  "name": "fintech-radar",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "anthropic": "^0.30.0"
+  }
+}
