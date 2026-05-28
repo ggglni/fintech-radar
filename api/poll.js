@@ -114,7 +114,7 @@ Rules:
     }],
   });
 
-  const raw = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+  const raw = response.content.filter((b) => b.type === "text").map((b) => b.text).join("").replace(/```json|```/g, "");
   let depth = 0, start = -1;
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === "{") { if (depth === 0) start = i; depth++; }
