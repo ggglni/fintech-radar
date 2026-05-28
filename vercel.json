@@ -7,7 +7,9 @@
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+    { "src": "/api/poll", "dest": "/api/poll.js" },
+    { "src": "/api/data", "dest": "/api/data.js" },
+    { "src": "/api/inbound", "dest": "/api/inbound.js" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }
