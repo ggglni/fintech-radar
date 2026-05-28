@@ -1,14 +1,14 @@
-// api/inbound.js
-// Receives inbound email webhooks from Resend
-// Extracts fintech signals via Claude, stores in Upstash KV
+// api/poll.js
+// Called by Vercel cron every day at 9am
+// Fetches new emails from Resend and processes them through Claude
 
-import Anthropic from "anthropic";
+import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Upstash REST helpers
+// Upstash helpers
 async function kvGet(key) {
-  const res = await fetch(`${process.env.KV_REST_API_URL}/get/${key}`, {
+  const res = await fetch(`${process.env.KV_REST_API_URL}/get/${encodeURIComponent(key)}`, {
     headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` },
   });
   const json = await res.json();
@@ -16,7 +16,7 @@ async function kvGet(key) {
 }
 
 async function kvSet(key, value) {
-  await fetch(`${process.env.KV_REST_API_URL}/set/${key}`, {
+  await fetch(`${process.env.KV_REST_API_URL}/set/${encodeURIComponent(key)}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}`,
@@ -26,11 +26,25 @@ async function kvSet(key, value) {
   });
 }
 
-function extractEmailBody(payload) {
-  const text = payload.text || "";
-  const html = payload.html || "";
-  if (text && text.length > 100) return text.slice(0, 12000);
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 12000);
+// Fetch received emails from Resend API
+async function fetchResendEmails() {
+  const res = await fetch("https://api.resend.com/emails?limit=20", {
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+    },
+  });
+  const json = await res.json();
+  return json.data || [];
+}
+
+// Fetch full email details including body
+async function fetchEmailDetails(emailId) {
+  const res = await fetch(`https://api.resend.com/emails/${emailId}`, {
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+    },
+  });
+  return res.json();
 }
 
 async function extractSignals(emailBody, subject, existingData) {
@@ -47,7 +61,7 @@ async function extractSignals(emailBody, subject, existingData) {
 Subject: ${subject}
 Body:
 ---
-${emailBody}
+${emailBody.slice(0, 12000)}
 ---
 
 Already tracked companies: ${existingCos}
@@ -99,8 +113,6 @@ Rules:
   });
 
   const raw = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-
-  // Robust JSON extraction
   let depth = 0, start = -1;
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === "{") { if (depth === 0) start = i; depth++; }
@@ -113,7 +125,6 @@ Rules:
 
 function mergeData(existing, parsed, subject) {
   const now = new Date().toISOString().slice(0, 10);
-
   const issues = existing.issues || [];
   issues.unshift({
     date: parsed.issueDate || now,
@@ -151,36 +162,52 @@ function mergeData(existing, parsed, subject) {
     }
   });
 
-  return {
-    companies,
-    themes,
-    issues: issues.slice(0, 50),
-    lastUpdated: now,
-  };
+  return { companies, themes, issues: issues.slice(0, 50), lastUpdated: now };
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  // Allow manual trigger via GET, cron via GET as well
+  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const payload = req.body;
-    const subject = payload.subject || payload.headers?.subject || "This Week in Fintech";
-    const emailBody = extractEmailBody(payload);
+    // Load already-processed email IDs to avoid duplicates
+    const processedIds = (await kvGet("processed_email_ids")) || [];
+    const emails = await fetchResendEmails();
 
-    if (!emailBody || emailBody.length < 100) {
-      return res.status(400).json({ error: "Email body too short or empty" });
+    // Filter to only inbound emails not yet processed
+    const newEmails = emails.filter(e =>
+      !processedIds.includes(e.id)
+    );
+
+    if (!newEmails.length) {
+      return res.status(200).json({ ok: true, message: "No new emails to process" });
     }
 
-    const existing = (await kvGet("radar_data")) || {};
-    const parsed = await extractSignals(emailBody, subject, existing);
-    const updated = mergeData(existing, parsed, subject);
-    await kvSet("radar_data", updated);
+    let existing = (await kvGet("radar_data")) || {};
+    const newProcessedIds = [...processedIds];
+    let processed = 0;
 
-    console.log(`Processed: ${subject} — ${(parsed.companies || []).length} companies`);
-    return res.status(200).json({ ok: true, companies: (parsed.companies || []).length });
+    for (const email of newEmails) {
+      try {
+        const details = await fetchEmailDetails(email.id);
+        const body = details.text || (details.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        if (!body || body.length < 100) continue;
 
+        const parsed = await extractSignals(body, details.subject || "This Week in Fintech", existing);
+        existing = mergeData(existing, parsed, details.subject || "This Week in Fintech");
+        newProcessedIds.push(email.id);
+        processed++;
+      } catch (e) {
+        console.error(`Failed to process email ${email.id}:`, e.message);
+      }
+    }
+
+    await kvSet("radar_data", existing);
+    await kvSet("processed_email_ids", newProcessedIds.slice(-200)); // keep last 200
+
+    return res.status(200).json({ ok: true, processed, total: newEmails.length });
   } catch (err) {
-    console.error("Inbound error:", err);
+    console.error("Poll error:", err);
     return res.status(500).json({ error: err.message });
   }
 }
