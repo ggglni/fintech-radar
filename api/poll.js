@@ -62,8 +62,9 @@ async function extractSignals(emailBody, subject, existingData) {
   const existingThemes = Object.keys(existingData.themes || {}).join(", ") || "none yet";
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4000,
+    model: "claude-sonnet-5",
+    max_tokens: 6000,
+    output_config: { effort: "low" },
     messages: [{
       role: "user",
       content: buildPrompt({ emailBody, subject, existingCos, existingThemes }),
